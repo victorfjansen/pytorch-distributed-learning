@@ -16,26 +16,23 @@ import torch.distributed as dist
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import Dataset, random_split
 
-# Custom dataset class
 class CustomImageDataset(Dataset):
     def __init__(self, root_dir, transform=None):
         self.root_dir = root_dir
         self.transform = transform
         self.image_paths = []
         self.labels = []
-        self.class_to_idx = {}  # Dictionary to map class names to indices
-        self.classes = []  # List to hold the class names
+        self.class_to_idx = {} 
+        self.classes = []
 
-        # Populate image paths and labels
         self._load_dataset()
 
     def _load_dataset(self):
-        # Walk through the root directory and collect image paths and labels
         for class_idx, class_dir in enumerate(sorted(os.listdir(self.root_dir))):
             class_path = os.path.join(self.root_dir, class_dir)
             if os.path.isdir(class_path):
-                self.class_to_idx[class_dir] = class_idx  # Map class name to index
-                self.classes.append(class_dir)  # Store class name
+                self.class_to_idx[class_dir] = class_idx  
+                self.classes.append(class_dir)  
                 for img_name in os.listdir(class_path):
                     img_path = os.path.join(class_path, img_name)
                     if img_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
@@ -55,45 +52,39 @@ class CustomImageDataset(Dataset):
 
         return image, label
 
-# Set environment variables for distributed training
-os.environ["MASTER_ADDR"] = "200.17.78.37"  # IP address of the master node
-os.environ["MASTER_PORT"] = "4500"  # Port used by the master node
-os.environ["WORLD_SIZE"] = "2"  # Total number of processes across all nodes
-os.environ["RANK"] = "0"  # Global rank of the current process (0 for master node)
-os.environ["LOCAL_RANK"] = "0"  # Local rank on this node (0 for single GPU per machine)
+os.environ["MASTER_ADDR"] = "200.17.78.37" 
+os.environ["MASTER_PORT"] = "4500" 
+os.environ["WORLD_SIZE"] = "2" 
+os.environ["RANK"] = "0"  
+os.environ["LOCAL_RANK"] = "0"  
 
-# Initialize process group
 dist.init_process_group("nccl")
 
 local_rank = int(os.environ["LOCAL_RANK"])
 global_rank = int(os.environ["RANK"])
 
-BATCH_SIZE = 48 // int(os.environ["WORLD_SIZE"])
+BATCH_SIZE = 32 // int(os.environ["WORLD_SIZE"])
 EPOCHS = 5
 WORKERS = 48
 IMG_DIMS = (256, 256)
 CLASSES = 10
 
-MODEL_NAME = 'resnet50d'
+MODEL_NAME = 'resnet34'
 
 transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Resize(IMG_DIMS),
 ])
 
-# Load the dataset
 dataset = CustomImageDataset(root_dir="dataset/train_images", transform=transform)
 
-# Split the dataset into training and testing subsets
 train_size = int(0.8 * len(dataset))
 test_size = len(dataset) - train_size
 train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 
-# Create DistributedSamplers for training and testing datasets
 train_sampler = DistributedSampler(train_dataset)
 test_sampler = DistributedSampler(test_dataset)
 
-# Create DataLoaders for training and testing
 train_loader = torch.utils.data.DataLoader(train_dataset,
                                            batch_size=BATCH_SIZE,
                                            shuffle=False,
@@ -114,17 +105,22 @@ model = model.to('cuda:' + str(local_rank))
 model = DDP(model, device_ids=[local_rank])
 
 loss_fn = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.01)
+optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-# Training phase
 start = time.perf_counter()
 for epoch in range(EPOCHS):
     epoch_start_time = time.perf_counter()
-
+    
     model.train()
-    train_sampler.set_epoch(epoch)  # Ensure proper shuffling each epoch
+    train_sampler.set_epoch(epoch)
+
+    running_loss = 0.0
+    correct = 0
+    total = 0
+
     for batch in tqdm(train_loader, total=len(train_loader)):
         features, labels = batch[0].to(local_rank), batch[1].to(local_rank)
+        print("\n\n LABELS", labels)
 
         optimizer.zero_grad()
 
@@ -134,11 +130,23 @@ for epoch in range(EPOCHS):
         loss.backward()
         optimizer.step()
 
-    epoch_end_time = time.perf_counter()
-    if global_rank == 0:
-        print(f"Epoch {epoch+1} Time", epoch_end_time - epoch_start_time)
+        running_loss += loss.item()
 
-# Testing phase
+        _, predicted = torch.max(preds, 1)
+        print("PREDICTED", predicted)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+        print("running_loss", running_loss)
+        print("running_accuracy", correct/total)
+
+    epoch_loss = running_loss / len(train_loader)
+    epoch_accuracy = 100 * correct / total
+
+    epoch_end_time = time.perf_counter()
+    print(f"Epoch {epoch+1}/{EPOCHS}")
+    print(f"Loss: {epoch_loss:.4f} | Accuracy: {epoch_accuracy:.2f}%")
+    print(f"Epoch Time: {epoch_end_time - epoch_start_time:.2f}s")
+
 model.eval()
 test_loss = 0.0
 correct = 0
@@ -167,5 +175,4 @@ end = time.perf_counter()
 if global_rank == 0:
     print("Training and Testing Took", end - start)
 
-# Cleanup
 dist.destroy_process_group()
