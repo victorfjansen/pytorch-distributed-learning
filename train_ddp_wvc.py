@@ -1,7 +1,6 @@
 import os
 import time
 import torch
-import torchvision
 import timm
 
 from torchvision import transforms
@@ -72,8 +71,13 @@ CLASSES = 10
 MODEL_NAME = 'resnet34'
 
 transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Resize(IMG_DIMS),
+    transforms.RandomRotation(degrees=5),                      
+    transforms.RandomAffine(degrees=0, shear=0.2),             
+    transforms.RandomResizedCrop(size=IMG_DIMS, scale=(0.8, 1.0)), 
+    transforms.RandomHorizontalFlip(),                        
+    transforms.ColorJitter(),                                
+    transforms.RandomApply([transforms.RandomAffine(degrees=0, translate=(0.05, 0.05))]), 
+    transforms.ToTensor(),                               
 ])
 
 dataset = CustomImageDataset(root_dir="dataset/train_images", transform=transform)
