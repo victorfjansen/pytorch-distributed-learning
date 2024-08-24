@@ -1,0 +1,4 @@
+timm
+torch
+torchvision
+torchaudio
