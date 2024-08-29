@@ -49,7 +49,7 @@ def save_logs(filename):
     output_dir = os.path.join(output_dir, MODEL_NAME)
     output_dir = output_dir + '/resources'
     os.makedirs(output_dir, exist_ok=True)
-    filename = os.path.join(output_dir, f'{MODEL_NAME}_SERVER_RESOURCE_LOGS.txt')
+    filename = os.path.join(output_dir, f'{MODEL_NAME}_SERVER_RESOURCE_LOGS.csv')
     with open(filename, 'w', newline='') as csvfile:
         log_writer = csv.writer(csvfile)
         log_writer.writerow(['Time', 'Event'])  # Cabeçalhos do CSV
@@ -98,7 +98,7 @@ def resources_usage(START, END, MACHINE_IP, IS_FIRST_MACHINE:bool):
         output_dir = os.path.join(output_dir, MODEL_NAME)
         output_dir = output_dir + '/resources'
         os.makedirs(output_dir, exist_ok=True)
-        cpu_file = os.path.join(output_dir, f'{MODEL_NAME}_RESOURCE_LOGS_CPU.txt')
+        cpu_file = os.path.join(output_dir, f'{MODEL_NAME}_RESOURCE_LOGS_CPU.csv')
         with open(cpu_file, 'wb') as file:
             file.write(response_cpu.content)
         print("Resource experiments (CPU Used) saved!")
@@ -120,7 +120,7 @@ def resources_usage(START, END, MACHINE_IP, IS_FIRST_MACHINE:bool):
         output_dir = os.path.join(output_dir, MODEL_NAME)
         output_dir = output_dir + '/resources'
         os.makedirs(output_dir, exist_ok=True)
-        ram_available_file = os.path.join(output_dir, f'{MODEL_NAME}_RESOURCE_LOGS_RAM_AVAILABLE.txt')
+        ram_available_file = os.path.join(output_dir, f'{MODEL_NAME}_RESOURCE_LOGS_RAM_AVAILABLE.csv')
 
         with open(ram_available_file, 'wb') as file:
             file.write(response_ram_available.content)
@@ -143,7 +143,7 @@ def resources_usage(START, END, MACHINE_IP, IS_FIRST_MACHINE:bool):
         output_dir = os.path.join(output_dir, MODEL_NAME)
         output_dir = output_dir + '/resources'
         os.makedirs(output_dir, exist_ok=True)
-        ram_used_file = os.path.join(output_dir, f'{MODEL_NAME}_RESOURCE_LOGS_RAM_USED.txt')
+        ram_used_file = os.path.join(output_dir, f'{MODEL_NAME}_RESOURCE_LOGS_RAM_USED.csv')
 
         with open(ram_used_file, 'wb') as file:
             file.write(response_ram_used.content)
@@ -166,7 +166,7 @@ def resources_usage(START, END, MACHINE_IP, IS_FIRST_MACHINE:bool):
         output_dir = os.path.join(output_dir, MODEL_NAME)
         output_dir = output_dir + '/resources'
         os.makedirs(output_dir, exist_ok=True)
-        gpu_file = os.path.join(output_dir, f'{MODEL_NAME}_RESOURCE_LOGS_GPU.txt')
+        gpu_file = os.path.join(output_dir, f'{MODEL_NAME}_RESOURCE_LOGS_GPU.csv')
 
         with open(gpu_file, 'wb') as file:
             file.write(response_gpu_used.content)
@@ -188,7 +188,7 @@ def resources_usage(START, END, MACHINE_IP, IS_FIRST_MACHINE:bool):
         output_dir = os.path.join(output_dir, MODEL_NAME)
         output_dir = output_dir + '/resources'
         os.makedirs(output_dir, exist_ok=True)
-        gpu_file = os.path.join(output_dir, f'{MODEL_NAME}_RESOURCE_LOGS_NETPACKETS.txt')
+        gpu_file = os.path.join(output_dir, f'{MODEL_NAME}_RESOURCE_LOGS_NETPACKETS.csv')
 
         with open(gpu_file, 'wb') as file:
             file.write(response_netpackets.content)
@@ -269,7 +269,7 @@ CLASSES = 13
 
 SEED = 42
 
-MODEL_NAME = 'mobilenetv2_100'
+MODEL_NAME = 'mobileone_s1'
 
 random.seed(SEED)
 np.random.seed(SEED)
@@ -281,12 +281,7 @@ torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
 
 transform = transforms.Compose([
-    transforms.RandomRotation(degrees=5),                      # Rotation by 5°
-    transforms.RandomAffine(degrees=0, shear=0.2),             # Shear intensity of 0.2°
-    transforms.RandomResizedCrop(size=IMG_DIMS, scale=(0.8, 1.0)),  # Zoom of 0.2
-    transforms.RandomHorizontalFlip(),                         # Horizontal flip
-    transforms.ColorJitter(),                                  # Optional: Adds color jittering
-    transforms.RandomApply([transforms.RandomAffine(degrees=0, translate=(0.05, 0.05))]),  # Width and height shift (5%)
+    transforms.Resize(size=IMG_DIMS),
     transforms.ToTensor(),                                     # Convert image to Tensor
 ])
 

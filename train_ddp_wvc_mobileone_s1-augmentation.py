@@ -269,7 +269,7 @@ CLASSES = 13
 
 SEED = 42
 
-MODEL_NAME = 'mobilenetv2_100'
+MODEL_NAME = 'mobileone_s1'
 
 random.seed(SEED)
 np.random.seed(SEED)
